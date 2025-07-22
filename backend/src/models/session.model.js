@@ -28,8 +28,6 @@ const sessionSchema = mongoose.Schema({
     enum: ['Beginner', 'Intermediate', 'Advanced'],
     default: 'Beginner',
   },
-  
-  
   experience: {
     type: String,
     enum: ['Fresher', '1–2 Years', '3–5 Years', '5+ Years'],
@@ -39,18 +37,10 @@ const sessionSchema = mongoose.Schema({
     type: [String],
     default: [],
   },
-  questions: [
-  {
+  questions: [{
     questionType: { type: String },
     questionText: { type: String, required: true },
-  },
-],
-
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  
+  }],
 }, { timestamps: true });
 
 export const Session = mongoose.model("Session", sessionSchema);

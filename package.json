@@ -19,6 +19,8 @@
   "dependencies": {
     "@ai-sdk/google": "^1.2.22",
     "@google/generative-ai": "^0.24.1",
+    "@headlessui/react": "^2.2.4",
+    "@heroicons/react": "^2.2.0",
     "@tailwindcss/vite": "^4.1.11",
     "@vapi-ai/web": "^2.3.8",
     "ai": "^4.3.17",
@@ -37,10 +39,11 @@
     "mongoose": "^8.16.1",
     "multer": "^2.0.1",
     "nodemon": "^3.1.10",
-    "openai": "^5.8.3",
+    "openai": "^5.10.1",
     "pdf-parse": "^1.1.1",
     "react-hot-toast": "^2.5.2",
     "react-router-dom": "^7.6.3",
+    "recharts": "^3.1.0",
     "tailwindcss": "^4.1.11",
     "zustand": "^5.0.6"
   }
