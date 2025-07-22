@@ -1,179 +1,222 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { axiosInstance } from "../utils/axios";
-import vapi from "../utils/vapi.sdk";
+
+const SHOW_FEEDBACK_IMMEDIATELY = false;
 
 function InterviewPage() {
   const { state } = useLocation();
-  const { questions, sessionId } = state || {};
+  const { questions = [], sessionId } = state || {};
+  const navigate = useNavigate();
 
   const [current, setCurrent] = useState(0);
   const [recording, setRecording] = useState(false);
-  const [videoUrl, setVideoUrl] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null); // Local preview
+  const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [completed, setCompleted] = useState(false);
 
   const mediaRecorderRef = useRef(null);
-  const chunks = useRef([]);
-  const transcriptRef = useRef(""); // to hold transcript
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+
+  const currentQuestion = questions[current] || null;
 
   useEffect(() => {
-    // Start camera on mount
-    (async () => {
+    startCamera();
+    return () => stopCamera();
+  }, []);
+
+  const startCamera = async () => {
+    try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       streamRef.current = stream;
       if (videoRef.current) videoRef.current.srcObject = stream;
-    })();
+    } catch (error) {
+      console.error("Camera error:", error);
+      alert("Unable to access camera/microphone");
+    }
+  };
 
-    return () => {
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+  };
 
   const startRecording = () => {
-    setFeedback(null);
-    transcriptRef.current = ""; // reset transcript
-    chunks.current = [];
+    if (!streamRef.current) {
+      startCamera();
+      return;
+    }
+    recordedChunksRef.current = [];
+    const mediaRecorder = new MediaRecorder(streamRef.current, { mimeType: "video/webm" });
+    mediaRecorderRef.current = mediaRecorder;
 
-    // Start Vapi real-time transcription
-    vapi.start();
+    mediaRecorder.ondataavailable = e => {
+      if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+    };
 
-    const recorder = new MediaRecorder(streamRef.current);
-    recorder.ondataavailable = (e) => chunks.current.push(e.data);
-    recorder.onstop = () => stopAndProcess();
-    recorder.start();
-    mediaRecorderRef.current = recorder;
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunksRef.current, { type: "video/webm" });
+      const localUrl = URL.createObjectURL(blob);
+      setVideoUrl(localUrl); // Immediate preview
+      processRecording(blob);
+    };
+
+    mediaRecorder.start();
     setRecording(true);
   };
 
-  const stopRecording = async () => {
-    if (mediaRecorderRef.current) {
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && recording) {
       mediaRecorderRef.current.stop();
       setRecording(false);
     }
-    // Turn camera off immediately
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-    }
-
-    // Wait for Vapi to finalize transcript
-    const finalTranscript = await vapi.stop(); // Ensure Vapi stops and returns text
-    transcriptRef.current = finalTranscript || transcriptRef.current || "No transcript available";
   };
 
-  const stopAndProcess = async () => {
-    const blob = new Blob(chunks.current, { type: "video/webm" });
-    const url = URL.createObjectURL(blob);
-    setVideoUrl(url);
-
-    try {
-      // Send to Gemini for evaluation
-      const { data } = await axiosInstance.post("/session/evaluate-video", {
-        audio: null, // no audio, we already got transcript via Vapi
-        question: questions[current].questionText,
-        transcript: transcriptRef.current,
-      });
-
-      const evaluation = {
-        summary: data.feedback?.summary || "No summary",
-        strengths: data.feedback?.strengths || [],
-        improvement: data.feedback?.improvement || "N/A",
-        tone: data.feedback?.tone || "N/A",
-      };
-
-      setFeedback(evaluation);
-
-      // Save everything in DB
-      const formData = new FormData();
-      formData.append("video", blob);
-      formData.append("sessionId", sessionId || "");
-      formData.append("questionText", questions[current].questionText || "");
-      formData.append("transcript", transcriptRef.current || "No transcript");
-      formData.append("evaluation", JSON.stringify(evaluation));
-
-      await axiosInstance.post("/session/save-response", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-    } catch (err) {
-      console.error("Save error:", err);
-      setFeedback({ summary: "Failed to analyze", strengths: [], improvement: "Retry", tone: "Unknown" });
-    }
-  };
-
-  const handleNext = () => {
+  const retryRecording = () => {
     setVideoUrl(null);
     setFeedback(null);
-    setCurrent((prev) => prev + 1);
-
-    // Restart camera for next question
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then((stream) => {
-      streamRef.current = stream;
-      if (videoRef.current) videoRef.current.srcObject = stream;
-    });
+    stopCamera();
+    startCamera();
   };
 
+const processRecording = async (blob) => {
+  setLoading(true);
+  try {
+    // Step 1: Transcribe + Evaluate (needs "audio")
+    const formData = new FormData();
+    formData.append("audio", blob, "response.webm");  // FIX: was "video"
+    formData.append("question", currentQuestion?.questionText || "");
+
+    const transcriptEvalRes = await axiosInstance.post("/session/transcribe-and-evaluate", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    const { transcript, feedback } = transcriptEvalRes.data;
+
+    // Step 2: Save Response (needs "video")
+    const saveFormData = new FormData();
+    saveFormData.append("video", blob, "response.webm");
+    saveFormData.append("sessionId", sessionId);
+    saveFormData.append("questionText", currentQuestion?.questionText || "");
+    saveFormData.append("transcript", transcript);
+    saveFormData.append("evaluation", JSON.stringify(feedback));
+
+    await axiosInstance.post("/session/save-response", saveFormData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (SHOW_FEEDBACK_IMMEDIATELY) setFeedback(feedback);
+  } catch (error) {
+    console.error("Save error:", error);
+    alert("Failed to process or save response. Check console.");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  const handleNext = () => {
+    if (current + 1 < questions.length) {
+      setCurrent(prev => prev + 1);
+      setVideoUrl(null);
+      setFeedback(null);
+    } else {
+      setCompleted(true);
+      stopCamera();
+    }
+  };
+
+  const handleFinish = () => {
+    stopCamera();
+    navigate("/dashboard");
+  };
+
+  if (!questions.length) {
+    return <div className="text-center text-white mt-10">No questions available.</div>;
+  }
+
+  if (completed) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-white">
+        <h2 className="text-2xl mb-4">Interview Completed!</h2>
+        <button
+          onClick={handleFinish}
+          className="bg-green-600 px-6 py-3 rounded-lg hover:bg-green-700"
+        >
+          Go to Dashboard
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-4xl mx-auto bg-[#2F4454] text-white rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold mb-4 text-[#DA7B93]">
-        Question {current + 1} of {questions?.length || 0}
+    <div className="flex flex-col items-center min-h-screen bg-[#1C3334] text-white p-6">
+      <h2 className="text-xl mb-4">
+        Question {current + 1} of {questions.length}
       </h2>
-      <p className="mb-4">{questions?.[current]?.questionText || "No question available"}</p>
+      <p className="text-center max-w-2xl mb-6">{currentQuestion?.questionText}</p>
 
-      <video ref={videoRef} autoPlay muted className="w-full rounded mb-4" />
+      {/* Live or Recorded Video */}
+      <video
+        ref={videoRef}
+        className="w-[480px] h-[360px] rounded-lg border border-gray-500 mb-4"
+        autoPlay
+        muted
+        playsInline
+        controls={!!videoUrl}
+        src={videoUrl || undefined}
+      />
 
-      {videoUrl && (
-        <video src={videoUrl} controls className="w-full rounded mb-4" />
-      )}
+      {loading && <p className="text-pink-400 mb-4">Processing response...</p>}
 
       <div className="flex gap-4 mb-4">
-        {!recording ? (
+        {!recording && (
           <button
             onClick={startRecording}
-            className="bg-[#DA7B93] px-4 py-2 rounded shadow-md"
+            className="bg-green-600 px-4 py-2 rounded-lg hover:bg-green-700"
           >
-            Start Answer
+            Start Recording
           </button>
-        ) : (
+        )}
+        {recording && (
           <button
             onClick={stopRecording}
-            className="bg-red-600 px-4 py-2 rounded shadow-md"
+            className="bg-red-600 px-4 py-2 rounded-lg hover:bg-red-700"
           >
             Stop
           </button>
         )}
-
-        {current < (questions?.length || 0) - 1 && (
-          <button
-            onClick={handleNext}
-            className="bg-green-600 px-4 py-2 rounded shadow-md"
-          >
-            Next
-          </button>
-        )}
-        {current === (questions?.length || 0) - 1 && (
-          <button
-            onClick={() => alert("Interview finished!")}
-            className="bg-blue-600 px-4 py-2 rounded shadow-md"
-          >
-            Finish
-          </button>
-        )}
+        <button
+          onClick={retryRecording}
+          className="bg-yellow-600 px-4 py-2 rounded-lg hover:bg-yellow-700"
+        >
+          Retry
+        </button>
       </div>
 
-      {feedback && (
-        <div className="bg-[#1C3334] p-4 rounded shadow text-sm">
-          <h3 className="font-bold mb-2">Feedback (Saved, not shown to user):</h3>
-          <p><strong>Summary:</strong> {feedback.summary}</p>
-          <p><strong>Strengths:</strong> {feedback.strengths?.join(", ")}</p>
-          <p><strong>Improvement:</strong> {feedback.improvement}</p>
-          <p><strong>Tone:</strong> {feedback.tone}</p>
+      {feedback && SHOW_FEEDBACK_IMMEDIATELY && (
+        <div className="bg-gray-800 p-4 rounded-lg max-w-xl">
+          <h3 className="text-lg font-semibold">Feedback</h3>
+          <p>{feedback.summary}</p>
+          <p className="mt-2">Tone: {feedback.tone}</p>
         </div>
       )}
+
+      <div className="flex gap-4 mt-6">
+        <button
+          onClick={handleNext}
+          className="bg-blue-600 px-6 py-3 rounded-lg hover:bg-blue-700"
+        >
+          {current + 1 < questions.length ? "Next Question" : "Finish Interview"}
+        </button>
+      </div>
     </div>
   );
 }
 
 export default InterviewPage;
-
