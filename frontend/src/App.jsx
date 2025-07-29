@@ -5,6 +5,7 @@ import SignUpPage from "./pages/SignUpPage";
 import LoginPage from "./pages/LoginPage";
 import EmailVerificationPage from "./pages/EmailVerificationPage";
 import DashboardPage from "./pages/DashboardPage";
+import SessionDetailedPage from "./pages/SessionDetailedPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import StartInterview from "./pages/StartInterview";
@@ -63,6 +64,8 @@ function App() {
 				<Route path='*' element={<Navigate to='/' replace />} />
 				<Route path='start-interview' element={<StartInterview />} />
 				<Route path='/interview/:sessionId' element={<InterviewPage />} />
+				<Route path="/session/:sessionId" element={<SessionDetailedPage />} />
+
 			</Routes>
 			<Toaster />
 		</div>
