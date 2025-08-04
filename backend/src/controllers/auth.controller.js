@@ -2,12 +2,14 @@ import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 
 import { generateToken } from "../utils/auth.util.js";
-import {
-	sendPasswordResetEmail,
-	sendResetSuccessEmail,
-	sendVerificationEmail,
-	sendWelcomeEmail,
-} from "../mailtrap/emails.js";
+// Commented out Mailtrap logic for testing
+// import {
+// 	sendPasswordResetEmail,
+// 	sendResetSuccessEmail,
+// 	sendVerificationEmail,
+// 	sendWelcomeEmail,
+// } from "../mailtrap/emails.js";
+
 import { User } from "../models/user.model.js";
 
 export const signup = async (req, res) => {
@@ -19,8 +21,6 @@ export const signup = async (req, res) => {
 		}
 
 		const userAlreadyExists = await User.findOne({ email });
-		
-
 		if (userAlreadyExists) {
 			return res.status(400).json({ success: false, message: "User already exists" });
 		}
@@ -38,10 +38,10 @@ export const signup = async (req, res) => {
 
 		await user.save();
 
-		// jwt
 		generateToken(res, user._id);
 
-		await sendVerificationEmail(user.email, verifyPasswordToken);
+		// Commented for testing
+		// await sendVerificationEmail(user.email, verifyPasswordToken);
 
 		res.status(201).json({
 			success: true,
@@ -73,7 +73,8 @@ export const verifyEmail = async (req, res) => {
 		user.verifyPasswordTokenExpiresAt = undefined;
 		await user.save();
 
-		await sendWelcomeEmail(user.email, user.name);
+		// Commented for testing
+		// await sendWelcomeEmail(user.email, user.name);
 
 		res.status(200).json({
 			success: true,
@@ -121,7 +122,7 @@ export const login = async (req, res) => {
 };
 
 export const logout = async (req, res) => {
- res.cookie("jwt","", {maxAge: "0"});
+	res.cookie("jwt", "", { maxAge: "0" });
 	res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
@@ -134,7 +135,6 @@ export const forgotPassword = async (req, res) => {
 			return res.status(400).json({ success: false, message: "User not found" });
 		}
 
-		// Generate reset token
 		const resetToken = crypto.randomBytes(20).toString("hex");
 		const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000; // 1 hour
 
@@ -143,8 +143,8 @@ export const forgotPassword = async (req, res) => {
 
 		await user.save();
 
-		// send email
-		await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
+		// Commented for testing
+		// await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
 
 		res.status(200).json({ success: true, message: "Password reset link sent to your email" });
 	} catch (error) {
@@ -167,7 +167,6 @@ export const resetPassword = async (req, res) => {
 			return res.status(400).json({ success: false, message: "Invalid or expired reset token" });
 		}
 
-		// update password
 		const hashedPassword = await bcryptjs.hash(password, 10);
 
 		user.password = hashedPassword;
@@ -175,7 +174,8 @@ export const resetPassword = async (req, res) => {
 		user.resetPasswordExpiresAt = undefined;
 		await user.save();
 
-		await sendResetSuccessEmail(user.email);
+		// Commented for testing
+		// await sendResetSuccessEmail(user.email);
 
 		res.status(200).json({ success: true, message: "Password reset successful" });
 	} catch (error) {

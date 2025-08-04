@@ -16,28 +16,27 @@ const SignUpPage = () => {
 
 	const handleSignUp = async (e) => {
 		e.preventDefault();
-
 		try {
 			await signup(email, password, name);
-			navigate("/verify-email");
+			navigate("/");
 		} catch (error) {
 			console.log(error);
 		}
 	};
+
 	return (
 		<motion.div
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.5 }}
-			className='max-w-md w-full bg-gray-800 bg-opacity-50 backdrop-filter backdrop-blur-xl rounded-2xl shadow-xl 
-			overflow-hidden'
+			className='flex justify-center items-center min-h-screen bg-gradient-to-br from-[#1C1F2A] to-[#2F4454] px-4'
 		>
-			<div className='p-8'>
-				<h2 className='text-3xl font-bold mb-6 text-center bg-gradient-to-r from-green-400 to-emerald-500 text-transparent bg-clip-text'>
-					Create Account
+			<div className='w-full max-w-md p-8 backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl shadow-2xl'>
+				<h2 className='text-center text-3xl font-bold mb-6 bg-gradient-to-r from-[#FF5DA2] to-[#00F2E2] text-transparent bg-clip-text'>
+					Create Your Account
 				</h2>
 
-				<form onSubmit={handleSignUp}>
+				<form onSubmit={handleSignUp} className='space-y-4'>
 					<Input
 						icon={User}
 						type='text'
@@ -59,27 +58,31 @@ const SignUpPage = () => {
 						value={password}
 						onChange={(e) => setPassword(e.target.value)}
 					/>
-					{error && <p className='text-red-500 font-semibold mt-2'>{error}</p>}
+
+					{error && <p className='text-red-500 font-medium'>{error}</p>}
 					<PasswordStrengthMeter password={password} />
 
 					<motion.button
-						className='mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white 
-						font-bold rounded-lg shadow-lg hover:from-green-600
-						hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2
-						 focus:ring-offset-gray-900 transition duration-200'
-						whileHover={{ scale: 1.02 }}
-						whileTap={{ scale: 0.98 }}
 						type='submit'
 						disabled={isLoading}
+						whileHover={{ scale: 1.02 }}
+						whileTap={{ scale: 0.98 }}
+						className='w-full py-3 px-4 bg-gradient-to-r from-[#5F27CD] to-[#FF5DA2] text-white font-semibold rounded-xl shadow-md hover:opacity-90 transition-all duration-200'
 					>
-						{isLoading ? <Loader className=' animate-spin mx-auto' size={24} /> : "Sign Up"}
+						{isLoading ? (
+							<Loader className='animate-spin mx-auto' size={24} />
+						) : (
+							"Sign Up"
+						)}
 					</motion.button>
 				</form>
-			</div>
-			<div className='px-8 py-4 bg-gray-900 bg-opacity-50 flex justify-center'>
-				<p className='text-sm text-gray-400'>
+
+				<p className='text-center text-sm text-gray-400 mt-6'>
 					Already have an account?{" "}
-					<Link to={"/login"} className='text-green-400 hover:underline'>
+					<Link
+						to='/login'
+						className='text-[#00F2E2] hover:underline transition-colors duration-150'
+					>
 						Login
 					</Link>
 				</p>
@@ -87,4 +90,5 @@ const SignUpPage = () => {
 		</motion.div>
 	);
 };
+
 export default SignUpPage;
