@@ -17,12 +17,6 @@ services:
         sync: false
       - key: GOOGLE_GEMINI_API_KEY
         sync: false
-      - key: MAILTRAP_TOKEN
-        sync: false
-      - key: VAPI_WEB_TOKEN
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false
       - key: CLIENT_URL
         sync: false # Set to your frontend URL, e.g. https://preppal.onrender.com
 
@@ -30,7 +24,6 @@ services:
   - type: web
     name: preppal
     runtime: static
-    region: oregon
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
