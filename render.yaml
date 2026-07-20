@@ -18,6 +18,12 @@ services:
         sync: false
       - key: GOOGLE_GEMINI_API_KEY
         sync: false
+      - key: MAILTRAP_TOKEN
+        sync: false
+      - key: VAPI_WEB_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
       - key: CLIENT_URL
         sync: false
 
@@ -25,7 +31,6 @@ services:
   - type: web
     name: preppal
     runtime: static
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
