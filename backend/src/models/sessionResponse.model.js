@@ -10,12 +10,19 @@ const sessionResponseSchema = mongoose.Schema({
     strengths: [String],
     improvement: String,
     tone: String,
+    confidence: Number,
+    weaknessSeverity: Number,
     idealAnswer: String,
   },
   attempt: { type: Number, default: 1 }, // Track retries
 
-  emotions: [String], // For future face analysis
-  transcriptionAccuracy: { type: Number, default: 0 }, // Future confidence score
+  emotions: [String], // Descriptive vocal-delivery tags (pace/pitch/energy based)
+  vocalMetrics: {
+    pace: Number,           // words per minute
+    pitchVariance: Number,  // Hz standard deviation across voiced frames
+    energyVariance: Number, // scaled RMS standard deviation
+  },
+  transcriptionAccuracy: { type: Number, default: 0 },
 }, { timestamps: true });
 
 export const SessionResponse = mongoose.model("SessionResponse", sessionResponseSchema);

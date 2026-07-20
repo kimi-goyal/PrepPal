@@ -19,10 +19,21 @@ app.use(express.urlencoded({ limit: "100mb", extended: true }));
 // Serve uploaded videos statically
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
-// CORS setup
+// CORS setup - use CLIENT_URL env var for production
+const allowedOrigins = process.env.CLIENT_URL
+  ? process.env.CLIENT_URL.split(",")
+  : ["http://localhost:5173"];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: function (origin, callback) {
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );
@@ -34,6 +45,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/session", sessionRoutes);
 app.use("/api/vapi", vapiRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 
 // Test route
 app.get("/", (req, res) => {

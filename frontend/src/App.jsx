@@ -18,10 +18,6 @@ import InterviewPage from "./pages/InterviewPage";
 const ProtectedRoute = ({ children }) => {
 	const { isAuthenticated, user } = useAuthStore();
 	if (!isAuthenticated) return <Navigate to="/login" replace />;
-
-	// Email verification check is temporarily disabled
-	// if (!user.isVerified) return <Navigate to="/verify-email" replace />;
-	
 	return children;
 };
 
@@ -41,7 +37,7 @@ function App() {
 	if (isCheckingAuth) return <LoadingSpinner />;
 
 	return (
-		<div className="relative bg-gradient-to-br from-[#FF5DA2] via-[#cd27bc] to-[#a149a7] min-h-screen">
+		<div className="relative min-h-screen bg-gradient-to-br from-[#0B0F19] via-[#141625] to-[#0B0F19]">
 			<FloatingShape color="bg-[#FF5DA2]" size="w-52 h-52" top="10%" left="5%" delay={0} />
 			<FloatingShape color="bg-[#00F2E2]" size="w-40 h-40" top="60%" left="75%" delay={2} />
 			<FloatingShape color="bg-[#5F27CD]" size="w-32 h-32" top="35%" left="50%" delay={1.2} />

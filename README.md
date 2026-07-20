@@ -42,15 +42,66 @@ AI-powered mock interview platform to simulate real interview experiences using 
 - Creating a dashboard with dynamic analytics
 - Integrating AI + emotion analysis in a user-friendly way
 
-## 📦 Setup
+## 📦 Local Setup
 
 ```bash
-# Frontend
-cd frontend
+# Backend
+cd backend
+cp .env.example .env   # Fill in your API keys
 npm install
 npm run dev
 
-# Backend
-cd backend
+# Frontend (new terminal)
+cd frontend
+cp .env.example .env   # Fill in your tokens
 npm install
 npm run dev
+```
+
+## 🚀 Deploy to Render
+
+This project is configured for deployment on [Render](https://render.com) with a **Blueprint** (`render.yaml`).
+
+### Prerequisites
+
+1. **MongoDB Atlas** — Create a free cluster at [mongodb.com/atlas](https://www.mongodb.com/atlas) and get your connection string.
+2. **Render Account** — Sign up at [render.com](https://render.com).
+3. **Push your code** to GitHub (make sure `.env` files are NOT committed).
+
+### Deploy Steps
+
+1. Go to [Render Dashboard](https://dashboard.render.com) → **New** → **Blueprint**
+2. Connect your GitHub repo containing this project
+3. Render will detect `render.yaml` and create two services:
+   - **preppal-api** — Backend Node.js web service
+   - **preppal** — Frontend static site
+
+4. **Set environment variables** in the Render dashboard for each service:
+
+   **Backend (`preppal-api`):**
+   | Variable | Value |
+   |----------|-------|
+   | `MONGODB_URI` | Your MongoDB Atlas connection string |
+   | `JWT_SECRET` | A strong random secret |
+   | `GOOGLE_GEMINI_API_KEY` | Your Gemini API key |
+   | `MAILTRAP_TOKEN` | Your Mailtrap token |
+   | `VAPI_WEB_TOKEN` | Your Vapi token |
+   | `OPENAI_API_KEY` | Your OpenAI key |
+   | `CLIENT_URL` | Your frontend URL (e.g., `https://preppal.onrender.com`) |
+
+   **Frontend (`preppal`):**
+   | Variable | Value |
+   |----------|-------|
+   | `VITE_API_URL` | Your backend URL + `/api` (e.g., `https://preppal-api.onrender.com/api`) |
+   | `VITE_VAPI_WEB_TOKEN` | Your Vapi web token |
+   | `VITE_VAPI_ASSISTANT_ID` | Your Vapi assistant ID |
+
+5. Click **Apply** — Render will build and deploy both services.
+
+### Important Notes
+
+- The backend uses a `/health` endpoint for Render's health checks.
+- The frontend is a static site with SPA routing (all routes rewrite to `index.html`).
+- `CLIENT_URL` in the backend must match your deployed frontend URL exactly (for CORS).
+- Free Render instances spin down after inactivity — first request may take ~30s.
+- File uploads (`/uploads`) are stored on the ephemeral filesystem — they'll be lost on redeploy. For persistent storage, consider using a cloud storage service (S3, Cloudinary, etc.).

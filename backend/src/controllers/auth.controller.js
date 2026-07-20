@@ -2,14 +2,6 @@ import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 
 import { generateToken } from "../utils/auth.util.js";
-// Commented out Mailtrap logic for testing
-// import {
-// 	sendPasswordResetEmail,
-// 	sendResetSuccessEmail,
-// 	sendVerificationEmail,
-// 	sendWelcomeEmail,
-// } from "../mailtrap/emails.js";
-
 import { User } from "../models/user.model.js";
 
 export const signup = async (req, res) => {
@@ -17,7 +9,7 @@ export const signup = async (req, res) => {
 
 	try {
 		if (!email || !password || !name) {
-			throw new Error("All fields are required");
+			return res.status(400).json({ success: false, message: "All fields are required" });
 		}
 
 		const userAlreadyExists = await User.findOne({ email });
@@ -40,19 +32,17 @@ export const signup = async (req, res) => {
 
 		generateToken(res, user._id);
 
-		// Commented for testing
-		// await sendVerificationEmail(user.email, verifyPasswordToken);
+		// Sanitize return object payload safely
+		const sanitizedUser = user.toObject();
+		delete sanitizedUser.password;
 
-		res.status(201).json({
+		return res.status(201).json({
 			success: true,
 			message: "User created successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: sanitizedUser,
 		});
 	} catch (error) {
-		res.status(400).json({ success: false, message: error.message });
+		return res.status(400).json({ success: false, message: error.message || "Signup failed" });
 	}
 };
 
@@ -73,30 +63,32 @@ export const verifyEmail = async (req, res) => {
 		user.verifyPasswordTokenExpiresAt = undefined;
 		await user.save();
 
-		// Commented for testing
-		// await sendWelcomeEmail(user.email, user.name);
+		const sanitizedUser = user.toObject();
+		delete sanitizedUser.password;
 
-		res.status(200).json({
+		return res.status(200).json({
 			success: true,
 			message: "Email verified successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: sanitizedUser,
 		});
 	} catch (error) {
-		console.log("error in verifyEmail ", error);
-		res.status(500).json({ success: false, message: "Server error" });
+		console.error("Error in verifyEmail: ", error);
+		return res.status(500).json({ success: false, message: "Server error" });
 	}
 };
 
 export const login = async (req, res) => {
 	const { email, password } = req.body;
 	try {
+		if (!email || !password) {
+			return res.status(400).json({ success: false, message: "Please fill in all fields" });
+		}
+
 		const user = await User.findOne({ email });
 		if (!user) {
 			return res.status(400).json({ success: false, message: "Invalid credentials" });
 		}
+		
 		const isPasswordValid = await bcryptjs.compare(password, user.password);
 		if (!isPasswordValid) {
 			return res.status(400).json({ success: false, message: "Invalid credentials" });
@@ -107,23 +99,23 @@ export const login = async (req, res) => {
 		user.lastLogin = new Date();
 		await user.save();
 
-		res.status(200).json({
+		const sanitizedUser = user.toObject();
+		delete sanitizedUser.password;
+
+		return res.status(200).json({
 			success: true,
 			message: "Logged in successfully",
-			user: {
-				...user._doc,
-				password: undefined,
-			},
+			user: sanitizedUser,
 		});
 	} catch (error) {
-		console.log("Error in login ", error);
-		res.status(400).json({ success: false, message: error.message });
+		console.error("Error in login: ", error);
+		return res.status(400).json({ success: false, message: error.message || "Login failed" });
 	}
 };
 
 export const logout = async (req, res) => {
-	res.cookie("jwt", "", { maxAge: "0" });
-	res.status(200).json({ success: true, message: "Logged out successfully" });
+	res.cookie("jwt", "", { maxAge: 0 });
+	return res.status(200).json({ success: true, message: "Logged out successfully" });
 };
 
 export const forgotPassword = async (req, res) => {
@@ -143,13 +135,10 @@ export const forgotPassword = async (req, res) => {
 
 		await user.save();
 
-		// Commented for testing
-		// await sendPasswordResetEmail(user.email, `${process.env.CLIENT_URL}/reset-password/${resetToken}`);
-
-		res.status(200).json({ success: true, message: "Password reset link sent to your email" });
+		return res.status(200).json({ success: true, message: "Password reset link sent to your email" });
 	} catch (error) {
-		console.log("Error in forgotPassword ", error);
-		res.status(400).json({ success: false, message: error.message });
+		console.error("Error in forgotPassword: ", error);
+		return res.status(400).json({ success: false, message: error.message });
 	}
 };
 
@@ -174,13 +163,10 @@ export const resetPassword = async (req, res) => {
 		user.resetPasswordExpiresAt = undefined;
 		await user.save();
 
-		// Commented for testing
-		// await sendResetSuccessEmail(user.email);
-
-		res.status(200).json({ success: true, message: "Password reset successful" });
+		return res.status(200).json({ success: true, message: "Password reset successful" });
 	} catch (error) {
-		console.log("Error in resetPassword ", error);
-		res.status(400).json({ success: false, message: error.message });
+		console.error("Error in resetPassword: ", error);
+		return res.status(400).json({ success: false, message: error.message });
 	}
 };
 
@@ -191,9 +177,9 @@ export const checkAuth = async (req, res) => {
 			return res.status(400).json({ success: false, message: "User not found" });
 		}
 
-		res.status(200).json({ success: true, user });
+		return res.status(200).json({ success: true, user });
 	} catch (error) {
-		console.log("Error in checkAuth ", error);
-		res.status(400).json({ success: false, message: error.message });
+		console.error("Error in checkAuth: ", error);
+		return res.status(400).json({ success: false, message: error.message });
 	}
 };

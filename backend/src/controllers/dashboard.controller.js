@@ -1,6 +1,7 @@
 import { Session } from "../models/session.model.js";
 import { SessionResponse } from "../models/sessionResponse.model.js";
 import mongoose from "mongoose";
+import { getConfidence } from "../utils/interviewHelpers.js";
 
 export const getDashboardData = async (req, res) => {
   try {
@@ -12,15 +13,17 @@ export const getDashboardData = async (req, res) => {
       sessionId: { $in: sessions.map((s) => s._id) },
     }).lean();
 
-    // Compute per-session confidence (mock for now)
+    // Compute per-session confidence based on evaluation.confidence (with tone fallback)
     const sessionData = sessions.map((session) => {
       const sessionResponses = responses.filter(r => r.sessionId.toString() === session._id.toString());
-      
+
       // Group by question to get unique questions count
       const uniqueQuestions = new Set(sessionResponses.map(r => r.questionText));
-      
+
       const avgConfidence = sessionResponses.length
-        ? Math.floor(Math.random() * 20) + 70
+        ? Math.round(
+            sessionResponses.reduce((acc, r) => acc + getConfidence(r.evaluation), 0) / sessionResponses.length
+          )
         : 0;
 
       return {
@@ -28,7 +31,7 @@ export const getDashboardData = async (req, res) => {
         createdAt: session.createdAt,
         jobDescription: session.jobDescription,
         numQuestions: session.numQuestions,
-        questionsAnswered: uniqueQuestions.size, // Use unique questions count
+        questionsAnswered: uniqueQuestions.size,
         confidence: avgConfidence,
       };
     });
@@ -42,8 +45,11 @@ export const getDashboardData = async (req, res) => {
       (acc, r) => acc + (r.evaluation?.strengths?.length || 0),
       0
     );
+
+    // Now driven by an actual weakness signal (weaknessSeverity > 0),
+    // instead of counting "responses that have an improvement field" (which is all of them).
     const weaknesses = responses.reduce(
-      (acc, r) => acc + (r.evaluation?.improvement ? 1 : 0),
+      (acc, r) => acc + (r.evaluation?.weaknessSeverity > 0 ? 1 : 0),
       0
     );
 
@@ -115,27 +121,27 @@ export const getSessionDetails = async (req, res) => {
 
     // Group responses by questionText to handle retakes
     const groupedResponses = {};
-    
+
     allResponses.forEach((response) => {
       const questionText = response.questionText;
-      
+
       if (!groupedResponses[questionText]) {
         groupedResponses[questionText] = [];
       }
-      
+
       groupedResponses[questionText].push(response);
     });
 
     // Create structured responses with attempts
     const responses = [];
     let questionNumber = 1;
-    
+
     Object.keys(groupedResponses).forEach((questionText) => {
       const questionResponses = groupedResponses[questionText];
-      
+
       // Sort by creation time to get correct attempt order
       questionResponses.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      
+
       questionResponses.forEach((response, attemptIndex) => {
         responses.push({
           ...response,
@@ -145,18 +151,19 @@ export const getSessionDetails = async (req, res) => {
           isLatestAttempt: attemptIndex === questionResponses.length - 1
         });
       });
-      
+
       questionNumber++;
     });
 
     // Calculate metrics using only the latest attempts
     const latestResponses = responses.filter(r => r.isLatestAttempt);
-    
+
+    // Now uses the real numeric confidence from evaluation (with tone fallback),
+    // instead of a case-sensitive string match that silently defaulted to 70 for almost everything.
     const questionAnalytics = latestResponses.map((r) => {
       const wordCount = r.userAnswer ? r.userAnswer.split(" ").length : 0;
       const tone = r.evaluation?.tone || "Neutral";
-      const confidence =
-        tone === "Confident" ? 90 : tone === "Neutral" ? 80 : 70;
+      const confidence = getConfidence(r.evaluation);
 
       return {
         questionNumber: r.questionNumber,
