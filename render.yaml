@@ -4,6 +4,7 @@ services:
     name: preppal-api
     runtime: node
     region: oregon
+    plan: free
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
@@ -12,18 +13,19 @@ services:
       - key: NODE_ENV
         value: production
       - key: MONGODB_URI
-        sync: false # Set manually in Render dashboard
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: GOOGLE_GEMINI_API_KEY
         sync: false
       - key: CLIENT_URL
-        sync: false # Set to your frontend URL, e.g. https://preppal.onrender.com
+        sync: false
 
   # Frontend Static Site
   - type: web
     name: preppal
     runtime: static
+    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
@@ -37,7 +39,7 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        sync: false # Set to your backend URL, e.g. https://preppal-api.onrender.com/api
+        sync: false
       - key: VITE_VAPI_WEB_TOKEN
         sync: false
       - key: VITE_VAPI_ASSISTANT_ID
