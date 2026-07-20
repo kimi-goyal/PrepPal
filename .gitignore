@@ -13,6 +13,8 @@ dist-ssr/
 # Uploaded files (large media)
 backend/uploads/
 backend/temp/
+backend/.env
+backend/node_modules
 
 
 # OS files
